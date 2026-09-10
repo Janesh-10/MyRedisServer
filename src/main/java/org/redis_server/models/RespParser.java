@@ -35,9 +35,18 @@ public class RespParser {
     }
 
     public RespValue parse() throws IOException {
-        int firstByte = reader.read();
-        if (firstByte == -1) {
-            throw new IOException("End of stream reached unexpectedly");
+        int firstByte;
+
+        // Skip any stray whitespace, carriage returns, or newlines between commands
+        while (true) {
+            firstByte = reader.read();
+            if (firstByte == -1) {
+                return null;
+            }
+            if (firstByte == '\r' || firstByte == '\n' || firstByte == ' ') {
+                continue;
+            }
+            break;
         }
 
         char marker = (char) firstByte;
