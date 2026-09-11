@@ -109,7 +109,7 @@ public class Main {
                     outputStream.write(response.serialize().getBytes());
                     outputStream.flush();
                 } catch (IOException e) {
-                    throw new RuntimeException(e);
+                    break;
                 }
             }
         } catch (IOException e) {
