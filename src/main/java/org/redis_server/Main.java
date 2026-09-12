@@ -1,5 +1,7 @@
 package org.redis_server;
 
+import org.redis_server.models.CommandHandler;
+import org.redis_server.models.RedisValue;
 import org.redis_server.models.RespParser;
 import org.redis_server.models.RespValue;
 
@@ -9,12 +11,12 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class Main {
 
-    private static final ConcurrentHashMap<String, String> redisStore = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, RedisValue> redisStore = new ConcurrentHashMap<>();
+    private static final CommandHandler commandHandler = new CommandHandler(redisStore);
 
     public static void main(String[] args) {
         int port = 6379;
@@ -56,55 +58,7 @@ public class Main {
                     RespValue request = parser.parse();
                     if (request == null) break;
 
-                    List<RespValue> elements = request.getArrayValue();
-                    if (elements == null || elements.isEmpty()) continue;
-
-                    String command = elements.get(0).getStringValue().toUpperCase();
-                    RespValue response;
-
-                    switch (command) {
-                        case "PING":
-                            response = RespValue.createSimpleString("PONG");
-                            break;
-
-                        case "ECHO":
-                            if (elements.size() > 1) {
-                                String message = elements.get(1).getStringValue();
-                                response = RespValue.createBulkString(message);
-                            } else {
-                                response = RespValue.createError("ERR wrong number of arguments for 'echo' command");
-                            }
-                            break;
-
-                        case "SET":
-                            if (elements.size() >= 3) {
-                                String key = elements.get(1).getStringValue();
-                                String value = elements.get(2).getStringValue();
-                                redisStore.put(key, value);
-                                response = RespValue.createSimpleString("OK");
-                            } else {
-                                response = RespValue.createError("ERR wrong number of arguments for 'set' command");
-                            }
-                            break;
-
-                        case "GET":
-                            if (elements.size() >= 2) {
-                                String key = elements.get(1).getStringValue();
-                                String value = redisStore.get(key);
-                                if (value == null) {
-                                    response = RespValue.createNullBulkString();
-                                } else {
-                                    response = RespValue.createBulkString(value);
-                                }
-                            } else {
-                                response = RespValue.createError("ERR wrong number of arguments for 'get' command");
-                            }
-                            break;
-
-                        default:
-                            response = RespValue.createError("ERR unknown command '" + command + "'");
-                            break;
-                    }
+                    RespValue response = commandHandler.handle(request.getArrayValue());
 
                     outputStream.write(response.serialize().getBytes());
                     outputStream.flush();
