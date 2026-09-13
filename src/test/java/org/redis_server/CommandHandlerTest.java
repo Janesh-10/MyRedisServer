@@ -2,7 +2,7 @@ package org.redis_server;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.redis_server.enums.Type;
+import org.redis_server.enums.RespValueType;
 import org.redis_server.models.CommandHandler;
 import org.redis_server.models.RedisValue;
 import org.redis_server.models.RespParser;
@@ -15,12 +15,11 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class CommandHandlerTest {
-    private ConcurrentHashMap<String, RedisValue> store;
     private CommandHandler handler;
 
     @BeforeEach
     void setUp() {
-        store = new ConcurrentHashMap<>();
+        ConcurrentHashMap<String, RedisValue> store = new ConcurrentHashMap<>();
         handler = new CommandHandler(store);
     }
 
@@ -33,11 +32,11 @@ public class CommandHandlerTest {
     @Test
     void testSetAndGetWithoutExpiry() throws IOException {
         RespValue setRes = parseAndHandle("*3\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n");
-        assertEquals(Type.SIMPLE_STRING, setRes.getType());
+        assertEquals(RespValueType.SIMPLE_STRING, setRes.getType());
         assertEquals("OK", setRes.getStringValue());
 
         RespValue getRes = parseAndHandle("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
-        assertEquals(Type.BULK_STRING, getRes.getType());
+        assertEquals(RespValueType.BULK_STRING, getRes.getType());
         assertEquals("bar", getRes.getStringValue());
     }
 
@@ -57,7 +56,7 @@ public class CommandHandlerTest {
 
         // Get after expiration (should be null)
         RespValue getRes2 = parseAndHandle("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
-        assertEquals(Type.NULL, getRes2.getType());
+        assertEquals(RespValueType.NULL, getRes2.getType());
     }
 
     @Test
@@ -68,7 +67,7 @@ public class CommandHandlerTest {
 
         // Get immediately should return null because it's already expired
         RespValue getRes = parseAndHandle("*2\r\n$3\r\nGET\r\n$3\r\nfoo\r\n");
-        assertEquals(Type.NULL, getRes.getType());
+        assertEquals(RespValueType.NULL, getRes.getType());
     }
 
     @Test
@@ -76,7 +75,7 @@ public class CommandHandlerTest {
         // SET foo bar EX invalid_number
         String setCmd = "*5\r\n$3\r\nSET\r\n$3\r\nfoo\r\n$3\r\nbar\r\n$2\r\nEX\r\n$7\r\ninvalid\r\n";
         RespValue res = parseAndHandle(setCmd);
-        assertEquals(Type.ERROR, res.getType());
+        assertEquals(RespValueType.ERROR, res.getType());
         assertTrue(res.getStringValue().contains("ERR"));
     }
 }

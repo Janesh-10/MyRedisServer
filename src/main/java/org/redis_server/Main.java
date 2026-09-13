@@ -5,10 +5,7 @@ import org.redis_server.models.RedisValue;
 import org.redis_server.models.RespParser;
 import org.redis_server.models.RespValue;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.concurrent.ConcurrentHashMap;
@@ -20,6 +17,8 @@ public class Main {
 
     public static void main(String[] args) {
         int port = 6379;
+
+        loadDatabaseFromFile("dump.rdb", redisStore);
 
         try (ServerSocket serverSocket = new ServerSocket(port)){
             serverSocket.setReuseAddress(true);
@@ -43,6 +42,30 @@ public class Main {
         }
         catch (IOException e) {
             System.out.println("Server Exception: " + e.getMessage());
+        }
+    }
+
+    public static void loadDatabaseFromFile(String filename, ConcurrentHashMap<String, RedisValue> redisStore) {
+        File file = new File(filename);
+        if (!file.exists()) {
+            return; // No snapshot found, start with empty store
+        }
+
+        try (ObjectInputStream ois = new ObjectInputStream(new FileInputStream(file))) {
+            ConcurrentHashMap<String, RedisValue> loadedStore =
+                    (ConcurrentHashMap<String, RedisValue>) ois.readObject();
+
+            // Filter out any keys that might have expired while the server was down
+            long currentTime = System.currentTimeMillis();
+            loadedStore.forEach((key, value) -> {
+                if (value.getExpiryTimeMs() == null || value.getExpiryTimeMs() > currentTime) {
+                    redisStore.put(key, value);
+                }
+            });
+
+            System.out.println("Database loaded successfully from " + filename);
+        } catch (IOException | ClassNotFoundException e) {
+            System.err.println("Warning: Could not load database snapshot: " + e.getMessage());
         }
     }
 
